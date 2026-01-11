@@ -3,21 +3,12 @@ package main
 import "fmt"
 
 func main() {
-	// var card string = "Ace of Spades"
-	card := newCard()
+	cards := newDeck()
 
-	cards := []string{"Ace of Spades", newCard(), card}
+	hand, remainingCards := deal(cards, 5)
+	fmt.Println("hand:")
+	hand.print()
+	fmt.Println("remaining cards:")
+	remainingCards.print()
 
-	//does not modify original slice, creates a new one
-	cards = append(cards, "Six of Spades")
-
-	// println(cards) prints memory address
-
-	for i, card := range cards {
-		fmt.Println(i, card)
-	}
-}
-
-func newCard() string {
-	return "Five of Diamonds"
 }
