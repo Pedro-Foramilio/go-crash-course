@@ -16,4 +16,7 @@ func main() {
 
 	fmt.Println("loaded cards from file:")
 	loadedCards.print()
+	loadedCards.shuffle()
+	println("Shuffled cards:")
+	loadedCards.print()
 }
