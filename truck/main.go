@@ -42,7 +42,7 @@ func processTruck(ctx context.Context, t Truck) error {
 	defer cancel()
 
 	//simulate long running process
-	delay := 1 * time.Second
+	delay := 3 * time.Second
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -89,7 +89,10 @@ func (t *EletricTruck) UnloadCargo() error {
 }
 
 func processFleet(ctx context.Context, trucks []Truck) error {
+
 	var wg = sync.WaitGroup{}
+
+	errorsChan := make(chan error, len(trucks))
 
 	for _, t := range trucks {
 		wg.Add(1)
@@ -97,6 +100,7 @@ func processFleet(ctx context.Context, trucks []Truck) error {
 		go func(tt Truck) {
 			if err := processTruck(ctx, tt); err != nil {
 				log.Printf("Error processing truck %+v: %v\n", tt, err)
+				errorsChan <- err
 			}
 			wg.Done()
 		}(t)
@@ -104,6 +108,17 @@ func processFleet(ctx context.Context, trucks []Truck) error {
 	}
 
 	wg.Wait()
+	close(errorsChan)
+
+	var errs []error
+	for err := range errorsChan {
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("Errors processing fleet: %v", errs)
+	}
+
 	return nil
 }
 
