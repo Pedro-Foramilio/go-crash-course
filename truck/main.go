@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
+	"time"
 )
 
 var (
@@ -28,20 +30,22 @@ type EletricTruck struct {
 }
 
 func processTruck(t Truck) error {
-	fmt.Printf("Processing truck: %+v\n", t)
+	fmt.Printf("Started Processing truck: %+v\n", t)
+	time.Sleep(1 * time.Second)
 
 	if err := t.LoadCargo(); err != nil {
 		return fmt.Errorf("Error loading cargo for truck %+v: %w", t, err)
 	}
 
-	fmt.Printf("Loaded Cargo: %+v\n", t)
+	// fmt.Printf("Loaded Cargo: %+v\n", t)
 
 	if err := t.UnloadCargo(); err != nil {
 		return fmt.Errorf("Error loading cargo for truck %+v: %w", t, err)
 	}
 
-	fmt.Printf("Unloaded Cargo: %+v\n", t)
+	// fmt.Printf("Unloaded Cargo: %+v\n", t)
 
+	fmt.Printf("Finished Processing truck: %+v\n", t)
 	return nil
 }
 
@@ -67,6 +71,23 @@ func (t *EletricTruck) UnloadCargo() error {
 	return nil
 }
 
+func processFleet(trucks []Truck) error {
+	var wg = sync.WaitGroup{}
+
+	for _, t := range trucks {
+		wg.Add(1)
+
+		go func(tt Truck) {
+			processTruck(tt)
+			wg.Done()
+		}(t)
+
+	}
+
+	wg.Wait()
+	return nil
+}
+
 func main() {
 	trucks := []NormalTruck{
 		{id: "TRK001"},
@@ -79,25 +100,15 @@ func main() {
 		{id: "ETRK002", cargo: 0, batteryLevel: 50},
 	}
 
-	if err := processTruck(&trucks[0]); err != nil {
-		switch err {
-		case ErrNotImplemented:
-			log.Fatalf("Truck with ID %s: Feature not implemented yet.\n", trucks[0].id)
-		case ErrTruckNotFound:
-			log.Fatalf("Truck with ID %s: Truck not found.\n", trucks[0].id)
-		default:
-			log.Fatalf("Error processing truck with ID %s: %v\n", trucks[0].id, err)
-		}
+	fleet := []Truck{
+		&trucks[0],
+		&trucks[1],
+		&trucks[2],
+		&eTrucks[0],
+		&eTrucks[1],
 	}
 
-	if err := processTruck(&eTrucks[0]); err != nil {
-		switch err {
-		case ErrNotImplemented:
-			log.Fatalf("Truck with ID %s: Feature not implemented yet.\n", eTrucks[0].id)
-		case ErrTruckNotFound:
-			log.Fatalf("Truck with ID %s: Truck not found.\n", eTrucks[0].id)
-		default:
-			log.Fatalf("Error processing truck with ID %s: %v\n", eTrucks[0].id, err)
-		}
+	if err := processFleet(fleet); err != nil {
+		log.Fatalf("Error processing fleet: %v\n", err)
 	}
 }
