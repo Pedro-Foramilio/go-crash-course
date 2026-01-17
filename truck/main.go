@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -11,7 +12,10 @@ import (
 var (
 	ErrNotImplemented = errors.New("some new error")
 	ErrTruckNotFound  = errors.New("truck not found")
+	UserIdKey         = contextKey("userId")
 )
+
+type contextKey string
 
 type Truck interface {
 	LoadCargo() error
@@ -29,9 +33,22 @@ type EletricTruck struct {
 	batteryLevel int
 }
 
-func processTruck(t Truck) error {
-	fmt.Printf("Started Processing truck: %+v\n", t)
+func processTruck(ctx context.Context, t Truck) error {
+	userId := ctx.Value(UserIdKey)
+	fmt.Printf("Started Processing truck: %+v with user %v\n", t, userId)
 	time.Sleep(1 * time.Second)
+
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	//simulate long running process
+	delay := 1 * time.Second
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(delay):
+		break
+	}
 
 	if err := t.LoadCargo(); err != nil {
 		return fmt.Errorf("Error loading cargo for truck %+v: %w", t, err)
@@ -71,14 +88,16 @@ func (t *EletricTruck) UnloadCargo() error {
 	return nil
 }
 
-func processFleet(trucks []Truck) error {
+func processFleet(ctx context.Context, trucks []Truck) error {
 	var wg = sync.WaitGroup{}
 
 	for _, t := range trucks {
 		wg.Add(1)
 
 		go func(tt Truck) {
-			processTruck(tt)
+			if err := processTruck(ctx, tt); err != nil {
+				log.Printf("Error processing truck %+v: %v\n", tt, err)
+			}
 			wg.Done()
 		}(t)
 
@@ -89,6 +108,10 @@ func processFleet(trucks []Truck) error {
 }
 
 func main() {
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, UserIdKey, 42)
+
 	trucks := []NormalTruck{
 		{id: "TRK001"},
 		{id: "TRK002"},
@@ -108,7 +131,7 @@ func main() {
 		&eTrucks[1],
 	}
 
-	if err := processFleet(fleet); err != nil {
+	if err := processFleet(ctx, fleet); err != nil {
 		log.Fatalf("Error processing fleet: %v\n", err)
 	}
 }
